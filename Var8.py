@@ -1,6 +1,5 @@
 import sys
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton,
     QVBoxLayout, QHBoxLayout, QComboBox, QGroupBox, QGridLayout, QMessageBox
@@ -11,11 +10,10 @@ from PyQt5.QtCore import Qt
 class AgriculturePriceCalculator(QWidget):
     def __init__(self):
         super().__init__()
-        self.INSURANCE_RATE = 30  # Процент страховых взносов
-        self.PLANNED_PRICE = 150  # Плановая цена для сравнения (тыс. руб.)
-        self.delivery_cost = 0.5  # Доставка 1 ц продукции, тыс. руб.
+        self.INSURANCE_RATE = 30
+        self.PLANNED_PRICE = 150
+        self.delivery_cost = 0.5
 
-        # Уровень наценки по культурам (%)
         self.markup_rates = {
             'ячмень': 50,
             'озимая пшеница': 35,
@@ -25,131 +23,99 @@ class AgriculturePriceCalculator(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle('Калькулятор цены продукции растениеводства')
-        self.setGeometry(100, 100, 700, 800)
+        self.setWindowTitle('Калькулятор цены продукции')
+        self.setGeometry(100, 100, 600, 700)
 
         main_layout = QVBoxLayout()
 
         # Заголовок
-        title = QLabel("Определение реализационной цены продукции растениеводства")
+        title = QLabel("Калькулятор цены растениеводства")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50; padding: 10px;")
         main_layout.addWidget(title)
 
-        # Создаем основную сетку для размещения полей
-        grid_layout = QGridLayout()
+        # Поля ввода
+        grid = QGridLayout()
 
-        # Тип культуры
-        grid_layout.addWidget(QLabel("Тип культуры:"), 0, 0)
+        grid.addWidget(QLabel("Культура:"), 0, 0)
         self.crop_combo = QComboBox()
         self.crop_combo.addItems(['ячмень', 'озимая пшеница', 'подсолнечник'])
-        grid_layout.addWidget(self.crop_combo, 0, 1)
+        grid.addWidget(self.crop_combo, 0, 1)
 
-        # Производственная себестоимость
-        grid_layout.addWidget(QLabel("Производственная себестоимость 1 ц (тыс. руб.):"), 1, 0)
-        self.cost_input = QLineEdit()
-        self.cost_input.setPlaceholderText("Введите стоимость...")
-        grid_layout.addWidget(self.cost_input, 1, 1)
+        fields = [
+            ("Себестоимость 1 ц (тыс. руб.):", "cost_input"),
+            ("Объем реализации (ц):", "volume_input"),
+            ("Аренда точки (тыс. руб.):", "rent_input"),
+            ("Зарплата (тыс. руб.):", "salary_input"),
+            ("Маркетинг (тыс. руб.):", "marketing_input")
+        ]
 
-        # Объем реализации
-        grid_layout.addWidget(QLabel("Объем реализации (ц):"), 2, 0)
-        self.volume_input = QLineEdit()
-        self.volume_input.setPlaceholderText("Введите объем...")
-        grid_layout.addWidget(self.volume_input, 2, 1)
+        self.inputs = {}
+        for i, (label_text, name) in enumerate(fields, 1):
+            grid.addWidget(QLabel(label_text), i, 0)
+            input_field = QLineEdit()
+            input_field.setPlaceholderText("Введите...")
+            grid.addWidget(input_field, i, 1)
+            self.inputs[name] = input_field
 
-        # Аренда торговой точки
-        grid_layout.addWidget(QLabel("Аренда торговой точки (тыс. руб.):"), 3, 0)
-        self.rent_input = QLineEdit()
-        self.rent_input.setPlaceholderText("Введите сумму...")
-        grid_layout.addWidget(self.rent_input, 3, 1)
+        # Кнопки
+        btn_layout = QHBoxLayout()
 
-        # Заработная плата продавцам
-        grid_layout.addWidget(QLabel("Заработная плата продавцам (тыс. руб.):"), 4, 0)
-        self.salary_input = QLineEdit()
-        self.salary_input.setPlaceholderText("Введите сумму...")
-        grid_layout.addWidget(self.salary_input, 4, 1)
-
-        # Маркетинговые расходы
-        grid_layout.addWidget(QLabel("Маркетинговые расходы (тыс. руб.):"), 5, 0)
-        self.marketing_input = QLineEdit()
-        self.marketing_input.setPlaceholderText("Введите сумму...")
-        grid_layout.addWidget(self.marketing_input, 5, 1)
-
-        # Кнопки расчетов
-        buttons_layout = QHBoxLayout()
-
-        self.insurance_btn = QPushButton("Рассчитать страховые взносы")
-        self.insurance_btn.clicked.connect(self.calculate_insurance)
-        buttons_layout.addWidget(self.insurance_btn)
-
-        self.markup_btn = QPushButton("Уровень наценки")
-        self.markup_btn.clicked.connect(self.show_markup)
-        buttons_layout.addWidget(self.markup_btn)
-
-        self.price_btn = QPushButton("Рассчитать цену реализации")
+        self.price_btn = QPushButton("Рассчитать цену")
         self.price_btn.clicked.connect(self.calculate_selling_price)
-        buttons_layout.addWidget(self.price_btn)
+        self.price_btn.setStyleSheet("background-color: #3498db; color: white;")
+        btn_layout.addWidget(self.price_btn)
 
-        self.compare_btn = QPushButton("Сравнение цен")
+        self.compare_btn = QPushButton("Сравнить с планом")
         self.compare_btn.clicked.connect(self.compare_prices)
-        self.compare_btn.setStyleSheet("background-color: #3498db; color: white;")
-        buttons_layout.addWidget(self.compare_btn)
+        self.compare_btn.setStyleSheet("background-color: #2ecc71; color: white;")
+        btn_layout.addWidget(self.compare_btn)
 
-        grid_layout.addLayout(buttons_layout, 6, 0, 1, 2)
+        grid.addLayout(btn_layout, len(fields) + 1, 0, 1, 2)
+        main_layout.addLayout(grid)
 
-        main_layout.addLayout(grid_layout)
-
-        # Группа результатов
-        results_group = QGroupBox("Результаты расчетов")
+        # Результаты
+        results_group = QGroupBox("Результаты")
         results_layout = QGridLayout()
 
-        # Страховые взносы
-        results_layout.addWidget(QLabel("Страховые взносы (тыс. руб.):"), 0, 0)
-        self.insurance_result = QLineEdit()
-        self.insurance_result.setReadOnly(True)
-        results_layout.addWidget(self.insurance_result, 0, 1)
+        self.results = {}
+        result_fields = [
+            ("Транспортные расходы (тыс. руб.):", "transport"),
+            ("Страховые взносы (тыс. руб.):", "insurance"),
+            ("Уровень наценки (%):", "markup"),
+            ("Цена реализации (тыс. руб.):", "price")
+        ]
 
-        # Транспортные расходы
-        results_layout.addWidget(QLabel("Транспортные расходы (тыс. руб.):"), 1, 0)
-        self.transport_result = QLineEdit()
-        self.transport_result.setReadOnly(True)
-        results_layout.addWidget(self.transport_result, 1, 1)
-
-        # Уровень наценки
-        results_layout.addWidget(QLabel("Уровень наценки (%):"), 2, 0)
-        self.markup_result = QLineEdit()
-        self.markup_result.setReadOnly(True)
-        results_layout.addWidget(self.markup_result, 2, 1)
-
-        # Цена реализации
-        results_layout.addWidget(QLabel("Цена реализации (тыс. руб.):"), 3, 0)
-        self.price_result = QLineEdit()
-        self.price_result.setReadOnly(True)
-        self.price_result.setStyleSheet("font-weight: bold; font-size: 14px; color: #27ae60;")
-        results_layout.addWidget(self.price_result, 3, 1)
+        for i, (label_text, name) in enumerate(result_fields):
+            results_layout.addWidget(QLabel(label_text), i, 0)
+            result_field = QLineEdit()
+            result_field.setReadOnly(True)
+            if name == "price":
+                result_field.setStyleSheet("font-weight: bold; font-size: 14px; color: #27ae60;")
+            results_layout.addWidget(result_field, i, 1)
+            self.results[name] = result_field
 
         results_group.setLayout(results_layout)
         main_layout.addWidget(results_group)
 
-        # Кнопки управления
+        # Управление
         control_layout = QHBoxLayout()
 
-        clear_btn = QPushButton("Очистить все поля")
+        clear_btn = QPushButton("Очистить")
         clear_btn.clicked.connect(self.clear_all)
         clear_btn.setStyleSheet("background-color: #e74c3c; color: white;")
         control_layout.addWidget(clear_btn)
 
         info_btn = QPushButton("Справка")
         info_btn.clicked.connect(self.show_info)
-        info_btn.setStyleSheet("background-color: #9b59b6; color: white;")
         control_layout.addWidget(info_btn)
 
         main_layout.addLayout(control_layout)
 
         # Статус
-        self.status_label = QLabel("Готов к работе. Введите данные и нажмите кнопки расчета.")
+        self.status_label = QLabel("Готов к работе")
         self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setStyleSheet("padding: 10px; font-style: italic;")
+        self.status_label.setStyleSheet("padding: 10px; color: #7f8c8d;")
         main_layout.addWidget(self.status_label)
 
         self.setLayout(main_layout)
@@ -157,259 +123,113 @@ class AgriculturePriceCalculator(QWidget):
 
     def apply_styles(self):
         self.setStyleSheet("""
-            QWidget {
-                font-family: 'Segoe UI', Arial;
-                font-size: 12px;
-                background-color: #f9f9f9;
-            }
-            QLineEdit {
-                padding: 8px;
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                background-color: white;
-            }
-            QPushButton {
-                padding: 10px 15px;
-                border: none;
-                border-radius: 5px;
-                font-weight: bold;
-            }
-            QGroupBox {
-                font-weight: bold;
-                border: 2px solid #3498db;
-                border-radius: 6px;
-                margin-top: 10px;
-                padding-top: 15px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 10px 0 10px;
-                color: #2c3e50;
-            }
-            QComboBox {
-                padding: 8px;
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                background-color: white;
-            }
+            QWidget { font-family: Arial; background-color: #f8f9fa; }
+            QLineEdit { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+            QPushButton { padding: 10px; border-radius: 5px; font-weight: bold; }
+            QGroupBox { border: 2px solid #3498db; border-radius: 5px; }
+            QGroupBox::title { color: #2c3e50; padding: 0 10px; }
         """)
 
-    def validate_inputs(self):
-        """Проверка введенных данных"""
-        required_fields = [
-            (self.cost_input, "производственная себестоимость"),
-            (self.volume_input, "объем реализации"),
-            (self.rent_input, "аренда торговой точки"),
-            (self.salary_input, "заработная плата продавцам"),
-            (self.marketing_input, "маркетинговые расходы")
-        ]
-
-        for field, name in required_fields:
-            if not field.text().strip():
-                self.show_status(f"Введите {name}!", "red")
-                return False
-
-            try:
-                value = float(field.text().replace(',', '.'))
-                if value < 0:
-                    self.show_status(f"{name.capitalize()} не может быть отрицательной!", "red")
-                    return False
-            except ValueError:
-                self.show_status(f"Некорректное значение в поле '{name}'!", "red")
-                return False
-
-        return True
-
-    def calculate_insurance(self):
-        """Расчет страховых взносов"""
-        if not self.salary_input.text().strip():
-            self.show_status("Введите заработную плату продавцам!", "red")
-            return
-
-        try:
-            salary = float(self.salary_input.text().replace(',', '.'))
-            insurance = round(salary * self.INSURANCE_RATE / 100, 2)
-            self.insurance_result.setText(f"{insurance:.2f}")
-            self.show_status(f"Страховые взносы рассчитаны: {insurance:.2f} тыс. руб.", "green")
-        except ValueError:
-            self.show_status("Ошибка ввода заработной платы!", "red")
-
-    def show_markup(self):
-        """Показ уровня наценки для выбранной культуры"""
-        crop = self.crop_combo.currentText()
-        markup = self.markup_rates.get(crop, 0)
-        self.markup_result.setText(f"{markup}%")
-        self.show_status(f"Уровень наценки для {crop}: {markup}%", "blue")
-
     def calculate_selling_price(self):
-        """Расчет цены реализации"""
-        if not self.validate_inputs():
-            return
+        # Проверка заполнения полей
+        for name, field in self.inputs.items():
+            if not field.text().strip():
+                self.show_status("Заполните все поля!", "red")
+                return
 
         try:
-            # Получаем все входные данные
-            cost = float(self.cost_input.text().replace(',', '.'))  # Производственная себестоимость
-            volume = float(self.volume_input.text().replace(',', '.'))  # Объем реализации
-            rent = float(self.rent_input.text().replace(',', '.'))  # Аренда
-            salary = float(self.salary_input.text().replace(',', '.'))  # Зарплата
-            marketing = float(self.marketing_input.text().replace(',', '.'))  # Маркетинг
+            # Получение данных
+            cost = float(self.inputs['cost_input'].text().replace(',', '.'))
+            volume = float(self.inputs['volume_input'].text().replace(',', '.'))
+            rent = float(self.inputs['rent_input'].text().replace(',', '.'))
+            salary = float(self.inputs['salary_input'].text().replace(',', '.'))
+            marketing = float(self.inputs['marketing_input'].text().replace(',', '.'))
 
-            # Рассчитываем дополнительные расходы
-            insurance_text = self.insurance_result.text()
-            insurance = float(insurance_text) if insurance_text else 0
-
-            # Транспортные расходы
+            # Расчеты
             transport = round(volume * self.delivery_cost, 2)
-            self.transport_result.setText(f"{transport:.2f}")
+            insurance = round(salary * self.INSURANCE_RATE / 100, 2)
 
-            # Получаем наценку
             crop = self.crop_combo.currentText()
             markup = self.markup_rates.get(crop, 0)
 
-            if not self.markup_result.text():
-                self.markup_result.setText(f"{markup}%")
-
-            # Общие расходы (без производственной себестоимости)
+            # Итоговая цена
             total_expenses = rent + salary + insurance + marketing
-
-            # Цена реализации по формуле
             selling_price = round((cost + total_expenses) * (1 + markup / 100), 2)
 
-            self.price_result.setText(f"{selling_price:.2f}")
+            # Вывод результатов
+            self.results['transport'].setText(f"{transport:.2f}")
+            self.results['insurance'].setText(f"{insurance:.2f}")
+            self.results['markup'].setText(f"{markup}%")
+            self.results['price'].setText(f"{selling_price:.2f}")
 
-            # Формируем подробный отчет
-            report = (f"Расчет цены для {crop}:\n"
-                      f"Производственная себестоимость: {cost:.2f} тыс. руб.\n"
-                      f"Дополнительные расходы: {total_expenses:.2f} тыс. руб.\n"
-                      f"Наценка: {markup}%\n"
-                      f"Итоговая цена реализации: {selling_price:.2f} тыс. руб.\n"
-                      f"Транспортные расходы: {transport:.2f} тыс. руб.")
-
-            self.show_status(f"Цена реализации рассчитана: {selling_price:.2f} тыс. руб.", "green")
-
-            # Сохраняем для сравнения
             self.calculated_price = selling_price
+            self.show_status(f"Цена рассчитана: {selling_price:.2f} тыс. руб.", "green")
 
-        except Exception as e:
-            self.show_status(f"Ошибка расчета: {str(e)}", "red")
+        except ValueError:
+            self.show_status("Ошибка в данных!", "red")
 
     def compare_prices(self):
-        """Сравнение рассчитанной цены с плановой и построение гистограммы"""
         if not hasattr(self, 'calculated_price'):
-            self.show_status("Сначала рассчитайте цену реализации!", "orange")
+            self.show_status("Сначала рассчитайте цену!", "orange")
             return
 
-        # Создаем окно с гистограммой
-        fig, ax = plt.subplots(figsize=(8, 6))
-
+        # Гистограмма сравнения
+        fig, ax = plt.subplots(figsize=(6, 4))
         prices = [self.calculated_price, self.PLANNED_PRICE]
-        labels = ['Рассчитанная цена', 'Плановая цена']
+        labels = ['Рассчитанная', 'Плановая']
         colors = ['#2ecc71', '#e74c3c']
 
         bars = ax.bar(labels, prices, color=colors, alpha=0.8)
-        ax.set_ylabel('Цена (тыс. руб.)', fontsize=12)
-        ax.set_title('Сравнение рассчитанной и плановой цен', fontsize=14, fontweight='bold')
+        ax.set_ylabel('Цена (тыс. руб.)')
+        ax.set_title('Сравнение цен')
 
-        # Добавляем значения на столбцы
         for bar, price in zip(bars, prices):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2., height + 0.5,
-                    f'{price:.2f}',
-                    ha='center', va='bottom', fontweight='bold')
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
+                    f'{price:.2f}', ha='center', fontweight='bold')
 
-        # Добавляем разницу
-        diff = abs(self.calculated_price - self.PLANNED_PRICE)
-        diff_text = f"Разница: {diff:.2f} тыс. руб."
-
-        if self.calculated_price > self.PLANNED_PRICE:
-            diff_text += " (рассчитанная цена выше)"
-            ax.text(0.5, max(prices) + 2, diff_text,
-                    ha='center', fontsize=11, color='red', fontweight='bold')
-        elif self.calculated_price < self.PLANNED_PRICE:
-            diff_text += " (рассчитанная цена ниже)"
-            ax.text(0.5, max(prices) + 2, diff_text,
-                    ha='center', fontsize=11, color='blue', fontweight='bold')
-        else:
-            diff_text = "Цены равны"
-            ax.text(0.5, max(prices) + 2, diff_text,
-                    ha='center', fontsize=11, color='green', fontweight='bold')
+        diff = self.calculated_price - self.PLANNED_PRICE
+        ax.text(0.5, max(prices) + 2, f"Разница: {diff:+.2f}",
+                ha='center', fontweight='bold', color='blue')
 
         plt.tight_layout()
-
-        # Показываем окно с графиком
         plt.show()
 
-        # Выводим информацию в консоль
-        print("\n" + "=" * 60)
-        print("СРАВНЕНИЕ ЦЕН РЕАЛИЗАЦИИ")
-        print("=" * 60)
-        print(f"Культура: {self.crop_combo.currentText()}")
-        print(f"Рассчитанная цена: {self.calculated_price:.2f} тыс. руб.")
-        print(f"Плановая цена: {self.PLANNED_PRICE:.2f} тыс. руб.")
-        print(f"Разница: {diff:.2f} тыс. руб.")
-
-        if diff / self.PLANNED_PRICE * 100 > 10:
-            print("ВНИМАНИЕ: Отклонение более 10%!")
-        print("=" * 60)
-
-        self.show_status("Сравнение цен выполнено. Открыто окно с гистограммой.", "green")
+        self.show_status("Сравнение выполнено", "green")
 
     def clear_all(self):
-        """Очистка всех полей"""
-        self.cost_input.clear()
-        self.volume_input.clear()
-        self.rent_input.clear()
-        self.salary_input.clear()
-        self.marketing_input.clear()
-        self.insurance_result.clear()
-        self.transport_result.clear()
-        self.markup_result.clear()
-        self.price_result.clear()
+        for field in self.inputs.values():
+            field.clear()
+        for field in self.results.values():
+            field.clear()
 
         if hasattr(self, 'calculated_price'):
             delattr(self, 'calculated_price')
 
-        self.show_status("Все поля очищены. Готово к новым расчетам.", "blue")
+        self.show_status("Все очищено", "blue")
 
     def show_info(self):
-        """Показ справочной информации"""
-        info_text = (
-            "СПРАВКА ПО РАСЧЕТУ ЦЕНЫ РЕАЛИЗАЦИИ\n\n"
+        info = (
             "Формула расчета:\n"
-            "Цена = (Производственная себестоимость + Дополнительные расходы) × (1 + Наценка/100)\n\n"
-            "Дополнительные расходы включают:\n"
-            "• Аренда торговой точки\n"
-            "• Заработная плата продавцам\n"
-            "• Страховые взносы (30% от зарплаты)\n"
-            "• Маркетинговые расходы\n\n"
-            "Уровень наценки по культурам:\n"
-            "• Ячмень: 50%\n"
-            "• Озимая пшеница: 35%\n"
-            "• Подсолнечник: 45%\n\n"
-            "Транспортные расходы = Объём реализации × 0.5 тыс. руб."
+            "Цена = (Себестоимость + Расходы) × (1 + Наценка%)\n\n"
+            "Расходы включают:\n"
+            "- Аренда\n- Зарплата\n- Страховые взносы (30% от зарплаты)\n"
+            "- Маркетинг\n\n"
+            "Наценки:\n"
+            "Ячмень: 50%\nПшеница: 35%\nПодсолнечник: 45%"
         )
-
-        QMessageBox.information(self, "Справка", info_text)
+        QMessageBox.information(self, "Справка", info)
 
     def show_status(self, message, color="black"):
-        """Обновление статусной строки"""
-        color_map = {
-            'red': '#e74c3c',
-            'green': '#27ae60',
-            'blue': '#3498db',
-            'orange': '#f39c12',
-            'black': '#2c3c3c'
-        }
-
+        colors = {'red': '#e74c3c', 'green': '#27ae60',
+                  'blue': '#3498db', 'orange': '#f39c12'}
         self.status_label.setText(message)
-        self.status_label.setStyleSheet(f"color: {color_map.get(color, 'black')}; padding: 10px; font-style: italic;")
+        self.status_label.setStyleSheet(f"color: {colors.get(color, 'black')}; padding: 10px;")
 
 
 def main():
     app = QApplication(sys.argv)
-    calculator = AgriculturePriceCalculator()
-    calculator.show()
+    window = AgriculturePriceCalculator()
+    window.show()
     sys.exit(app.exec_())
 
 
